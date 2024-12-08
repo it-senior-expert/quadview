@@ -1,7 +1,7 @@
 import { MutableRefObject } from "react";
 import vtkActor from "@kitware/vtk.js/Rendering/Core/Actor";
 import vtkOpenGLRenderWindow from "@kitware/vtk.js/Rendering/OpenGL/RenderWindow";
-import vtkColorTransferFunction from "@kitware/vtk.js/Rendering/Core/ColorTransferFunction";
+// import vtkColorTransferFunction from "@kitware/vtk.js/Rendering/Core/ColorTransferFunction";
 import vtkPiecewiseFunction from "@kitware/vtk.js/Common/DataModel/PiecewiseFunction";
 import vtkImageSlice from "@kitware/vtk.js/Rendering/Core/ImageSlice";
 import vtkImageMapper from "@kitware/vtk.js/Rendering/Core/ImageMapper";
@@ -16,12 +16,14 @@ import vtkMouseCameraTrackballRotateManipulator from "@kitware/vtk.js/Interactio
 import vtkMouseCameraTrackballPanManipulator from "@kitware/vtk.js/Interaction/Manipulators/MouseCameraTrackballPanManipulator";
 import vtkInteractorStyleManipulator from "@kitware/vtk.js/Interaction/Style/InteractorStyleManipulator";
 import vtkFullScreenRenderWindow from "@kitware/vtk.js/Rendering/Misc/FullScreenRenderWindow";
-
+import vtkVolumeMapper from "@kitware/vtk.js/Rendering/Core/VolumeMapper";
 import CustomInteractorStyleImage from "./custom-interactor-style";
 import { useViewportsStore } from "./state/viewports";
 import { useMeshesStore } from "./state/meshes";
+import { useVolumeStore } from "./state/volume";
 import { usePointCloudsStore } from "./state/point-clouds";
-
+import vtkColorTransferFunction from "../utils/vtk-extended-color-transfer-function";
+import vtkVolume from "@kitware/vtk.js/Rendering/Core/Volume";
 export type Bounds = [number, number, number, number, number, number];
 // Define labels and their associated colors
 export const labels: {
@@ -181,7 +183,7 @@ const createTransferFunctions = () => {
   const ctf = vtkColorTransferFunction.newInstance();
   ctf.addRGBPoint(0, 0, 0.25, 0.15);
   ctf.addRGBPoint(600, 0.5, 0.5, 0.5);
-  ctf.addRGBPoint(3120, 0.2, 0, 0);
+  ctf.addRGBPoint(3120, 0.2, 0, 0.1);
 
   // Piecewise function for opacity
   const pf = vtkPiecewiseFunction.newInstance();
@@ -192,6 +194,24 @@ const createTransferFunctions = () => {
   return { ctf, pf };
 };
 
+
+
+// Function to create color and piecewise functions
+const createTransferFunctions1 = () => {
+  // Color transfer function for main volume
+  const ctf = vtkColorTransferFunction.newInstance();
+  ctf.addRGBPoint(0, 0.8, 0.0, 0.0);
+  ctf.addRGBPoint(600, 0.2, 0.8, 0.0);
+  ctf.addRGBPoint(3120, 0.0, 0.0, 0.8);
+
+  // Piecewise function for opacity
+  const pf = vtkPiecewiseFunction.newInstance();
+  pf.addPoint(100, 0.);
+  pf.addPoint(100, 0.);
+  pf.addPoint(3120, 1.0);
+
+  return { ctf, pf };
+};
 /**
  * Sets up a 2D viewport for a specific view.
  * @param options - Configuration object containing all necessary parameters.
@@ -446,9 +466,25 @@ export const createQuadView = (options: {
     });
   }
 
+
+ // Volume rendering
+const { ctf, pf } = createTransferFunctions1();
+ const volumeMapper = vtkVolumeMapper.newInstance();
+ volumeMapper.setSampleDistance(1.1);
+ volumeMapper.setInputData(imageData);
+
+ const volume = vtkVolume.newInstance();
+ volume.setMapper(volumeMapper);
+ volume.getProperty().setRGBTransferFunction(0, ctf);
+ volume.getProperty().setScalarOpacity(0, pf);
+ viewports.volume.renderer?.addVolume(volume);
+ viewports.volume.renderer?.resetCamera();
+//  viewports.volume.renderWindow?.render();
+
+
   // Render all render windows
   viewports.axial.renderWindow?.render();
   viewports.coronal.renderWindow?.render();
   viewports.sagittal.renderWindow?.render();
-  // viewports.volume.renderWindow?.render();
+  viewports.volume.renderWindow?.render();
 };
